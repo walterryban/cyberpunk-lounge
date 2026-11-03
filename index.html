@@ -205,25 +205,22 @@
         </div>
     </div>
 
-   <script>
+    <script>
         // --- CREDENCIALES DE SUPABASE ---
         const SUPABASE_URL = 'https://oavnuccigegmhtqviwlh.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_mObzFeoHbIXNgtd7OVuiiw_djbegTS7';
 
-        // Evitamos el error de doble declaración reutilizando la instancia si ya existe
-        if (!window.supabaseClient) {
-            window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                realtime: {
-                    params: {
-                        eventsPerSecond: 10
-                    }
+        // Usamos dbClient para evitar conflictos con la variable global de la librería
+        const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            realtime: {
+                params: {
+                    eventsPerSecond: 10
                 }
-            });
-        }
-        const supabase = window.supabaseClient;
+            }
+        });
 
         const container = document.getElementById('lounge-canvas-container');
-        // ... el resto de tu código sigue igual ...
+
         const myNode = {
             id: 'NODE-' + Math.floor(1000 + Math.random() * 9000),
             name: 'MOVIL-' + Math.floor(10 + Math.random() * 90),
@@ -234,7 +231,7 @@
         const activeNodes = {};
 
         // Canal Realtime en Supabase
-        const channel = supabase.channel('alerta-urbana-room', {
+        const channel = dbClient.channel('alerta-urbana-room', {
             config: {
                 broadcast: { self: true, ack: false }
             }
