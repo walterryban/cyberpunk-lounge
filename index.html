@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALERTA URBANA GPS // SPATIAL LOUNGE</title>
+    <!-- Web App Manifest para Android -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#00f3ff">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #030308;
+            --panel-bg: rgba(6, 10, 20, 0.9);
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff0055;
+            --neon-green: #00ff66;
+            --text-main: #d0e0ff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', monospace;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--panel-bg);
+            border-bottom: 2px solid var(--neon-cyan);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.25);
+            z-index: 20;
+        }
+
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px var(--neon-cyan);
+            letter-spacing: 2px;
+        }
+
+        .status-panel { display: flex; gap: 10px; font-size: 0.8rem; }
+        .badge {
+            background: rgba(0, 243, 255, 0.08);
+            border: 1px solid var(--neon-cyan);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #lounge-canvas-container {
+            flex: 1;
+            position: relative;
+            background-image: 
+                radial-gradient(circle at center, rgba(0, 243, 255, 0.05) 0%, transparent 70%),
+                linear-gradient(rgba(0, 243, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+            cursor: crosshair;
+        }
+
+        .node {
+            position: absolute;
+            width: 75px; height: 75px;
+            border-radius: 50%;
+            background: rgba(10, 15, 30, 0.95);
+            border: 2px solid var(--neon-cyan);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+            transform: translate(-50%, -50%);
+            transition: left 0.1s linear, top 0.1s linear;
+            z-index: 5;
+        }
+
+        .node.self {
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 25px rgba(255, 0, 85, 0.7);
+        }
+
+        .node-avatar { font-size: 1.5rem; }
+        .node-name {
+            font-size: 0.65rem;
+            color: #fff;
+            max-width: 65px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        #chat-panel {
+            width: 280px;
+            background: var(--panel-bg);
+            border-left: 2px solid var(--neon-cyan);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .chat-header {
+            padding: 10px;
+            background: rgba(0, 243, 255, 0.1);
+            border-bottom: 1px solid var(--neon-cyan);
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--neon-cyan);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.75rem;
+        }
+
+        .msg {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid var(--neon-cyan);
+            padding: 6px;
+            border-radius: 2px;
+        }
+
+        .msg.self-msg {
+            border-left-color: var(--neon-pink);
+            background: rgba(255, 0, 85, 0.05);
+        }
+
+        .msg-author { font-weight: bold; color: var(--neon-cyan); }
+        .msg.self-msg .msg-author { color: var(--neon-pink); }
+        .msg-text { color: #fff; word-break: break-word; }
+
+        .chat-input-area {
+            padding: 8px;
+            border-top: 1px solid rgba(0, 243, 255, 0.3);
+            display: flex;
+            gap: 4px;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--neon-cyan);
+            color: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        button {
+            background: transparent;
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 8px 12px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover { background: var(--neon-cyan); color: #000; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">ALERTA URBANA // LOUNGE</div>
+        <div class="status-panel">
+            <div class="badge">RED: <span id="status-text" style="color: var(--neon-pink);">CONECTANDO...</span></div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div id="lounge-canvas-container"></div>
+
+        <div id="chat-panel">
+            <div class="chat-header">// RED CANAL ABIERTO</div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Mensaje..." onkeydown="if(event.key==='Enter') sendChat()">
+                <button onclick="sendChat()">></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- REEMPLAZÁ CON TUS DATOS DE SUPABASE ---
+        const SUPABASE_URL = 'TU_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'TU_SUPABASE_ANON_KEY';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const container = document.getElementById('lounge-canvas-container');
+
+        const myNode = {
+            id: 'NODE-' + Math.floor(1000 + Math.random() * 9000),
+            name: 'MOVIL-' + Math.floor(10 + Math.random() * 90),
+            x: window.innerWidth / 3,
+            y: window.innerHeight / 2
+        };
+
+        const activeNodes = {};
+
+        // Canal Realtime en Supabase
+        const channel = supabase.channel('alerta-urbana-room', {
+            config: { broadcast: { self: true } }
+        });
+
+        // Movimiento de nodos remotos
+        channel.on('broadcast', { event: 'node-moved' }, (payload) => {
+            const data = payload.payload;
+            if (data.id !== myNode.id) {
+                activeNodes[data.id] = data;
+                renderRemoteNode(data);
+            }
+        });
+
+        // Chat en tiempo real
+        channel.on('broadcast', { event: 'new-message' }, (payload) => {
+            appendChatMessage(payload.payload);
+        });
+
+        // Conexión
+        channel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                document.getElementById('status-text').textContent = "ONLINE";
+                document.getElementById('status-text').style.color = "var(--neon-green)";
+                renderMyNode();
+                broadcastMyPosition();
+            }
+        });
+
+        function broadcastMyPosition() {
+            channel.send({
+                type: 'broadcast',
+                event: 'node-moved',
+                payload: myNode
+            });
+        }
+
+        container.addEventListener('click', (e) => {
+            if (e.target !== container) return;
+            const rect = container.getBoundingClientRect();
+            myNode.x = e.clientX - rect.left;
+            myNode.y = e.clientY - rect.top;
+
+            renderMyNode();
+            broadcastMyPosition();
+        });
+
+        function renderMyNode() {
+            let el = document.getElementById(`node-${myNode.id}`);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = `node-${myNode.id}`;
+                el.className = 'node self';
+                el.innerHTML = `<div class="node-avatar">📱</div><div class="node-name">${myNode.name}</div>`;
+                container.appendChild(el);
+            }
+            el.style.left = `${myNode.x}px`;
+            el.style.top = `${myNode.y}px`;
+        }
+
+        function renderRemoteNode(data) {
+            let el = document.getElementById(`node-${data.id}`);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = `node-${data.id}`;
+                el.className = 'node';
+                el.innerHTML = `<div class="node-avatar">📡</div><div class="node-name">${data.name}</div>`;
+                container.appendChild(el);
+            }
+            el.style.left = `${data.x}px`;
+            el.style.top = `${data.y}px`;
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chat-input');
+            const textValue = input.value.trim();
+            if (textValue !== '') {
+                channel.send({
+                    type: 'broadcast',
+                    event: 'new-message',
+                    payload: {
+                        senderId: myNode.id,
+                        senderName: myNode.name,
+                        text: textValue,
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    }
+                });
+                input.value = '';
+            }
+        }
+
+        function appendChatMessage(data) {
+            const chatBox = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `msg ${data.senderId === myNode.id ? 'self-msg' : ''}`;
+            msgDiv.innerHTML = `
+                <div class="msg-author">${data.senderName} <span style="font-size:0.6rem; color:#777;">[${data.time}]</span></div>
+                <div class="msg-text">${data.text}</div>
+            `;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
