@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ALERTA URBANA GPS // SPATIAL LOUNGE</title>
     <!-- Web App Manifest para Android -->
     <link rel="manifest" href="/manifest.json">
@@ -19,7 +19,7 @@
             --text-main: #d0e0ff;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; touch-action: manipulation; }
 
         body {
             background-color: var(--bg-color);
@@ -43,11 +43,11 @@
         }
 
         .logo {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 900;
             color: var(--neon-cyan);
             text-shadow: 0 0 10px var(--neon-cyan);
-            letter-spacing: 2px;
+            letter-spacing: 1px;
         }
 
         .status-panel { display: flex; gap: 10px; font-size: 0.8rem; }
@@ -78,7 +78,7 @@
 
         .node {
             position: absolute;
-            width: 75px; height: 75px;
+            width: 65px; height: 65px;
             border-radius: 50%;
             background: rgba(10, 15, 30, 0.95);
             border: 2px solid var(--neon-cyan);
@@ -88,7 +88,7 @@
             justify-content: center;
             box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
             transform: translate(-50%, -50%);
-            transition: left 0.1s linear, top 0.1s linear;
+            transition: left 0.15s ease-out, top 0.15s ease-out;
             z-index: 5;
         }
 
@@ -97,11 +97,11 @@
             box-shadow: 0 0 25px rgba(255, 0, 85, 0.7);
         }
 
-        .node-avatar { font-size: 1.5rem; }
+        .node-avatar { font-size: 1.3rem; }
         .node-name {
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             color: #fff;
-            max-width: 65px;
+            max-width: 55px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -109,7 +109,7 @@
         }
 
         #chat-panel {
-            width: 280px;
+            width: 240px;
             background: var(--panel-bg);
             border-left: 2px solid var(--neon-cyan);
             display: flex;
@@ -121,14 +121,14 @@
             padding: 10px;
             background: rgba(0, 243, 255, 0.1);
             border-bottom: 1px solid var(--neon-cyan);
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: bold;
             color: var(--neon-cyan);
         }
 
         .chat-messages {
             flex: 1;
-            padding: 10px;
+            padding: 8px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
@@ -167,6 +167,7 @@
             padding: 8px;
             border-radius: 4px;
             outline: none;
+            font-size: 0.8rem;
         }
 
         button {
@@ -205,11 +206,19 @@
     </div>
 
     <script>
-        // --- REEMPLAZÁ CON TUS DATOS DE SUPABASE ---
+        // --- CREDENCIALES DE SUPABASE ---
         const SUPABASE_URL = 'https://oavnuccigegmhtqviwlh.supabase.co';
+        // Reemplazá este valor por tu clave ANON pública corta (JWT eyJhbGci...)
         const SUPABASE_ANON_KEY = 'sb_publishable_mObzFeoHbIXNgtd7OVuiiw_djbegTS7';
-        
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            realtime: {
+                params: {
+                    eventsPerSecond: 10
+                }
+            }
+        });
+
         const container = document.getElementById('lounge-canvas-container');
 
         const myNode = {
@@ -223,7 +232,9 @@
 
         // Canal Realtime en Supabase
         const channel = supabase.channel('alerta-urbana-room', {
-            config: { broadcast: { self: true } }
+            config: {
+                broadcast: { self: true, ack: false }
+            }
         });
 
         // Movimiento de nodos remotos
@@ -240,13 +251,17 @@
             appendChatMessage(payload.payload);
         });
 
-        // Conexión
-        channel.subscribe((status) => {
+        // Manejo del estado de conexión
+        channel.subscribe((status, err) => {
+            const statusEl = document.getElementById('status-text');
             if (status === 'SUBSCRIBED') {
-                document.getElementById('status-text').textContent = "ONLINE";
-                document.getElementById('status-text').style.color = "var(--neon-green)";
+                statusEl.textContent = "ONLINE";
+                statusEl.style.color = "var(--neon-green)";
                 renderMyNode();
                 broadcastMyPosition();
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                statusEl.textContent = "RECONECTANDO...";
+                statusEl.style.color = "var(--neon-pink)";
             }
         });
 
@@ -258,15 +273,20 @@
             });
         }
 
-        container.addEventListener('click', (e) => {
-            if (e.target !== container) return;
+        // Posicionamiento mediante toque o clic
+        function updatePosition(e) {
             const rect = container.getBoundingClientRect();
-            myNode.x = e.clientX - rect.left;
-            myNode.y = e.clientY - rect.top;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            myNode.x = clientX - rect.left;
+            myNode.y = clientY - rect.top;
 
             renderMyNode();
             broadcastMyPosition();
-        });
+        }
+
+        container.addEventListener('click', updatePosition);
 
         function renderMyNode() {
             let el = document.getElementById(`node-${myNode.id}`);
