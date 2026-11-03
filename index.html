@@ -205,22 +205,25 @@
         </div>
     </div>
 
-    <script>
+   <script>
         // --- CREDENCIALES DE SUPABASE ---
         const SUPABASE_URL = 'https://oavnuccigegmhtqviwlh.supabase.co';
-        // Reemplazá este valor por tu clave ANON pública corta (JWT eyJhbGci...)
         const SUPABASE_ANON_KEY = 'sb_publishable_mObzFeoHbIXNgtd7OVuiiw_djbegTS7';
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            realtime: {
-                params: {
-                    eventsPerSecond: 10
+        // Evitamos el error de doble declaración reutilizando la instancia si ya existe
+        if (!window.supabaseClient) {
+            window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                realtime: {
+                    params: {
+                        eventsPerSecond: 10
+                    }
                 }
-            }
-        });
+            });
+        }
+        const supabase = window.supabaseClient;
 
         const container = document.getElementById('lounge-canvas-container');
-
+        // ... el resto de tu código sigue igual ...
         const myNode = {
             id: 'NODE-' + Math.floor(1000 + Math.random() * 9000),
             name: 'MOVIL-' + Math.floor(10 + Math.random() * 90),
