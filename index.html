@@ -77,7 +77,6 @@
         button { background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 8px 12px; font-weight: bold; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
         button:hover { background: var(--neon-cyan); color: #000; }
 
-        /* BOTÓN FLOTANTE DE MICRÓFONO */
         #mic-btn {
             position: fixed;
             bottom: 80px;
@@ -121,19 +120,17 @@
         </div>
     </div>
 
-    <!-- BOTÓN FLOTANTE -->
     <button id="mic-btn" onclick="toggleMic()">🎤 ACTIVAR MIC</button>
 
     <script>
-        // --- CONFIGURACIÓN ---
         const SUPABASE_URL = 'https://oavnuccigegmhtqviwlh.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_mObzFeoHbIXNgtd7OVuiiw_djbegTS7';
-        const HF_TOKEN = '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'; // Token solo lectura
+        const HF_TOKEN = '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';
         const TURN_ENDPOINT = 'https://turn.fastrtc.org/credentials';
         const PROXIMITY_THRESHOLD = 150;
         const MAX_AUDIO_DISTANCE = 200;
 
-        const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { realtime: { params: { eventsPerSecond: 10 } } });
+        const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { realtime: { params: { eventsPerSecond: 20 } } });
         const container = document.getElementById('lounge-canvas-container');
         const chatMessages = document.getElementById('chat-messages');
         const micBtn = document.getElementById('mic-btn');
@@ -144,6 +141,8 @@
             x: window.innerWidth / 3,
             y: window.innerHeight / 2
         };
+        console.log("MI NODO:", myNode.id, myNode.name);
+
         const activeNodes = {};
         let localStream = null;
         let audioContext = null;
@@ -168,11 +167,16 @@
             }
         }
 
-        const channel = dbClient.channel('alerta-urbana-room', { config: { broadcast: { self: true, ack: false } } });
+        const channel = dbClient.channel('alerta-urbana-room-fixed', { config: { broadcast: { self: true, ack: false } } });
 
         channel.on('broadcast', { event: 'node-moved' }, (payload) => {
             const data = payload.payload;
             if (data.id !== myNode.id) {
+                // Si es un nodo nuevo, le contestamos con nuestra posición para que nos dibuje
+                if (!activeNodes[data.id]) {
+                    console.log("NUEVO NODO DETECTADO, RESPONDIENDO:", data.id);
+                    broadcastMyPosition(); 
+                }
                 activeNodes[data.id] = data;
                 renderRemoteNode(data);
                 checkProximity();
@@ -206,6 +210,8 @@
                 renderMyNode();
                 broadcastMyPosition();
                 await fetchTurnCredentials();
+                // Enviar posición constantemente
+                setInterval(broadcastMyPosition, 2000);
             } else {
                 statusEl.textContent = "RECONECTANDO...";
                 statusEl.style.color = "var(--neon-pink)";
