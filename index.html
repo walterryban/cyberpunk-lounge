@@ -39,15 +39,16 @@
         .logo { font-size: 1.1rem; font-weight: 900; color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); letter-spacing: 1px; }
         .status-panel { display: flex; gap: 10px; font-size: 0.8rem; align-items: center; }
         .badge { background: rgba(0, 243, 255, 0.08); border: 1px solid var(--neon-cyan); padding: 5px 10px; border-radius: 4px; }
-        #mic-btn { background: transparent; border: 1px solid var(--neon-green); color: var(--neon-green); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.75rem; }
-        #mic-btn.active { background: var(--neon-green); color: #000; }
+        
         .main-container { flex: 1; display: flex; position: relative; overflow: hidden; }
+        
         #lounge-canvas-container {
             flex: 1; position: relative;
             background-image: radial-gradient(circle at center, rgba(0, 243, 255, 0.05) 0%, transparent 70%), linear-gradient(rgba(0, 243, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 243, 255, 0.04) 1px, transparent 1px);
             background-size: 100% 100%, 40px 40px, 40px 40px;
             cursor: crosshair;
         }
+        
         .node {
             position: absolute; width: 65px; height: 65px; border-radius: 50%;
             background: rgba(10, 15, 30, 0.95); border: 2px solid var(--neon-cyan);
@@ -60,6 +61,7 @@
         .node.nearby { border-color: var(--neon-green); box-shadow: 0 0 30px rgba(0, 255, 102, 0.8); }
         .node-avatar { font-size: 1.3rem; }
         .node-name { font-size: 0.6rem; color: #fff; max-width: 55px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; }
+        
         #chat-panel { width: 240px; background: var(--panel-bg); border-left: 2px solid var(--neon-cyan); display: flex; flex-direction: column; z-index: 10; }
         .chat-header { padding: 10px; background: rgba(0, 243, 255, 0.1); border-bottom: 1px solid var(--neon-cyan); font-size: 0.75rem; font-weight: bold; color: var(--neon-cyan); }
         .chat-messages { flex: 1; padding: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.75rem; }
@@ -68,10 +70,35 @@
         .msg-author { font-weight: bold; color: var(--neon-cyan); }
         .msg.self-msg .msg-author { color: var(--neon-pink); }
         .msg-text { color: #fff; word-break: break-word; }
+        
         .chat-input-area { padding: 8px; border-top: 1px solid rgba(0, 243, 255, 0.3); display: flex; gap: 4px; }
         .chat-input-area input { flex: 1; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--neon-cyan); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-size: 0.8rem; }
-        button { background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 8px 12px; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        
+        button { background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 8px 12px; font-weight: bold; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
         button:hover { background: var(--neon-cyan); color: #000; }
+
+        /* BOTÓN FLOTANTE DE MICRÓFONO */
+        #mic-btn {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(6, 10, 20, 0.9);
+            border: 2px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1rem;
+            box-shadow: 0 0 20px rgba(0, 255, 102, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #mic-btn.active {
+            background: var(--neon-green) !important;
+            color: #000 !important;
+            box-shadow: 0 0 30px rgba(0, 255, 102, 0.8) !important;
+        }
     </style>
 </head>
 <body>
@@ -79,9 +106,9 @@
         <div class="logo">ALERTA URBANA // LOUNGE</div>
         <div class="status-panel">
             <div class="badge">RED: <span id="status-text" style="color: var(--neon-pink);">CONECTANDO...</span></div>
-            <button id="mic-btn" onclick="toggleMic()">🎤 ACTIVAR MIC</button>
         </div>
     </header>
+
     <div class="main-container">
         <div id="lounge-canvas-container"></div>
         <div id="chat-panel">
@@ -93,6 +120,10 @@
             </div>
         </div>
     </div>
+
+    <!-- BOTÓN FLOTANTE -->
+    <button id="mic-btn" onclick="toggleMic()">🎤 ACTIVAR MIC</button>
+
     <script>
         // --- CONFIGURACIÓN ---
         const SUPABASE_URL = 'https://oavnuccigegmhtqviwlh.supabase.co';
